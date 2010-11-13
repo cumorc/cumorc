@@ -1,0 +1,65 @@
+import os
+import glob
+
+Import('env')
+Import('var')
+Import('env_GCC')
+
+print ('Compiling CUDA')
+
+#compile util as shared libary
+filelist = glob.glob('util/*.cc')
+print('using the following utils:', filelist)
+for _file in filelist:
+    env.SharedObject(_file)
+
+if (env['DEBUG'] ):
+    env.Append(CPPDEFINES = ['DEBUG=1'])
+    env.Append(NVCCINC = ' -DDEBUG=1')
+else:
+    env.Append(CPPDEFINES = ['DEBUG=0'])
+    env.Append(NVCCINC = ' -DDEBUG=0')
+
+
+if (env['DTIME'] ):
+    env.Append(CPPDEFINES = ['DTIME'])
+    env.Append(NVCCINC = ' -DTIME')
+
+
+if (env['MACTIME'] ):
+    env.Append(CPPDEFINES = ['MACTIME'] )
+    env.Append(NVCCINC = ' -DMACTIME')
+
+    
+env.Append(NVCCINC=' '.join([' -I',
+    '/'.join(['cuda','util']),
+]))
+
+env.Append(NVCCINC=' '.join([' -I',
+    '/'.join([env['SVM_PATH']]),
+    ]))
+
+env.Append(NVCCINC=' '.join([' -I',
+    '/'.join(['src/cuda/layers/']),
+]))
+env.Append(NVCCINC=' -Xptxas -v')
+
+
+env.Append(CPPPATH=[
+    '/'.join(['src', 'cuda', 'util']),
+    '/'.join(['src', 'cuda', 'layers']),
+])
+
+#compiling the cuda stuff in tests
+filelist = ['tests/patch_extract/patch_extract.cu',
+            'tests/weight_patches/weight_patches.cu',] 
+
+for _file in filelist:
+  print(_file)
+  env.Program([_file,"layers/base.cu",Glob('util/*.os')])
+ 
+env.Library('mpp',['layers/base.cu',Glob('util/*.os')])   
+env.SharedObject('mppRec','layers/base.cu')   
+
+
+

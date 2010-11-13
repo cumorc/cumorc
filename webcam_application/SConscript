@@ -1,0 +1,27 @@
+import os
+import glob
+
+Import('env')
+Import('var')
+Import('env_GCC')
+
+
+
+#env.Append(LIBPATH=['/usr/local/lib','../cuda'])#,'/opt/local/lib'
+env.Append(LIBPATH=[
+    '/'.join([env['OCV_PATH'], 'lib']),  
+    '../cuda',
+])
+#print('../'.join([env['SVM_PATH']]))
+env.Append(CPPPATH = [
+    '/'.join([env['OCV_PATH'], 'include', 'opencv']),  
+    '../cuda',
+    '../cuda/util',
+    '../cuda/layers', 
+    '/'.join(['..',env['SVM_PATH']]),
+])
+env.Append(CPPDEFINES = ['WEBCAM_GUARD'])
+env.Append(LIBS=['highgui','cxcore','cv','mpp'])
+
+
+env.Program('webcam',['webcam.cc','/'.join(['..',env['SVM_PATH'], '/svm.cpp']),'../cuda/mppRec.os',Glob('../cuda/util/*.os')])

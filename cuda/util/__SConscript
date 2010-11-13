@@ -1,0 +1,13 @@
+import os
+
+Import('env')
+Import('var')
+
+
+print("utils called")
+sources = [ "io_matlab",
+            "io_ppm",
+          ]  
+
+for source in sources:
+				env.Library(source, source+'.cc')

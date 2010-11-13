@@ -1,0 +1,134 @@
+====================
+    - CuMORC -
+====================
+
+(c) 2010 Copyright
+Ferdinand Deger, firstname.lastname@gmail.com
+Helmut Sedding, firstname@lastname.net
+
+
+I) Introduction
+---------------
+Massively Parallel Multiclass Object Recognition is a demonstration of a CUDA based, realtime, cortex-like object recognition software. The architecture is described in [1]. Measurements showed that this implementation outperforms other current implementations J. Mutchs model [1,2]. It is written by Ferdinand Deger and Helmut Sedding (both Ulm University). You may reuse the source code, as stated in LICENSE file. Without warranties.
+
+[1] H. Sedding, F. Deger, H. Dammertz, J. Bouecke, H.P.A. Lensch - Massively Parallel Multiclass Object Recognition - VMV 2010
+
+
+II) Getting started
+-------------------
+There are basically two ways to compile the CUDA project. Firstly you may use the Makefile, or secondly the SConscript. In both cases you have to adapt the paths, as they may happen to be at different locations. 
+
+To get started, please download the support vector machine libsvm. It can be found under: http://www.csie.ntu.edu.tw/~cjlin/libsvm. We used version 2.9.
+
+The SVM can be used internally for the webcam application, but as well externally. For the latter case, we output files in the LIBSVM format. This way has been used for performance testings.
+
+For the former case, the compile script expects a folder src/libsvm-2.9. If your svm is located at a different location, or if you have downloaded a different version, change the compile scripts.
+
+Our program is written to use the LIBSVM API and its file format, but you could use other classifiers, too. 
+
+
+III) Compile scripts
+--------------------
+Two compile scripts are available.
+
+III,1) MAKEFILE
+---------------
+Set the paths according to your configuration:
+
+export LD_LIBRARY_PATH="/cuda/toolkit_3.1/cuda/lib/:$LD_LIBRARY_PATH"
+export CUDA_SDK_PATH="/cuda/sdk_custom_3.1/C"
+export CUDA_TOOLKIT_PATH="/cuda/toolkit_3.1/cuda"
+export CUDA_SDK_DIR="/cuda/sdk_custom_3.1/C"
+export CUDA_INSTALL_PATH="/cuda/toolkit_3.1/cuda"
+
+III,2) SCONS
+------------
+The configuration of the sconsfile is located in the main folder site_scons. You have to create a file called custom.py - there are already two example files, that show you what options you have there. You can access the SConstruct in every source folder by
+>>> scons -D
+
+
+IV) Known Problems:
+-------------------
+- Was only tested with 32bit compilation. If you want to try 64bit, do it consistently.
+- The MacOS standard folder for the SDK is /Developer/GPU Computing/ - there seems to be a problem with the whitespace. Changed it therefore to /Developer/GPUComputing/ 
+
+
+V) Picture Format
+-----------------
+Pictures need to be in grayscale TGA format. Convert your jpg pictures with ImageMagick like this:
+
+$ for img in `find |grep \\.jpg$`; do convert $img -verbose -colorspace Gray ${img/.jpg/.tga}; rm -v $img; done
+
+to resize them at the same time, you this loop comes in handy:
+
+$ for img in `find |grep \\.jpg$`; do convert $img -verbose -interpolate bicubic -resize '210x210^' -gaussian-blur 0 -colorspace Gray ${img/.jpg/.tga}; rm -v $img; done
+
+and to simply convert color TGA pictures to grayscale TGA:
+
+$ for img in `find |grep \\.tga$`; do convert $img -verbose -colorspace Gray $img; done
+
+
+VI) Basic Tests
+---------------
+
+VI,1) Patch Extraction
+----------------------
+To extract a feature dictionary out of a sample set, run:
+
+input: the image files and the category id, one per line, e.g. "img.tga 1"
+GABOR is the name of the gabor filters, gabor.dat
+BASENAME is the filename prefix for the patches
+
+$ cat imgfiles | tests/patch_extract/patch_extract $(GABOR) $(BASENAME) $(NPATCHES)
+
+VI,2) Training Image Set Weighting
+----------------------------------
+input: the image files and the category id, one per line, e.g. "img.tga 1"
+GABOR is the name of the gabor filters, gabor.dat
+BASENAME is the filename prefix for the patches
+TRAINNAME is the filename for the libsvm file for training
+SPHERINGNAME the filename for the libsvm file to save the sphering values
+
+$ cat imgfiles | tests/weight_patches/weight_patches $(GABOR) $(BASENAME) $(TRAINNAME) $(SPHERINGNAME) 1
+
+VI,3) Test Image Set Weighting
+------------------------------
+input: the image files and the category id, one per line, e.g. "img.tga 1"
+GABOR is the name of the gabor filters, gabor.dat
+BASENAME is the filename prefix for the patches
+TESTNAME is the filename for the libsvm file for testing
+SPHERINGNAME the filename for the libsvm file to read the sphering values
+
+$ cat imgfiles | tests/weight_patches/weight_patches $(GABOR) $(BASENAME) $(TESTNAME) $(SPHERINGNAME) 0
+
+VI,4) LIBSVM Train
+------------------
+TRAINNAME is the filename for the libsvm file for training
+MODELNAME is the filename to write trained model
+
+$ svm-train -t 0 -c 10 $(TRAINNAME) $(MODELNAME)
+
+hint: set the variable OMP_NUM_THREADS=$(NCPUS) beforehand to use multiple CPUs. For this need to separately enable multicpu-support when compiling libsvm.
+
+VI,4) LIBSVM Test
+-----------------
+TESTNAME is the filename for the libsvm file for testing
+MODELNAME is the filename to read trained model
+PREDICTNAME is the filename to save the predicted category ids of each picture
+
+$ svm-predict $(TESTNAME) $(MODELNAME) $(PREDICTNAME)
+
+hint: set the variable OMP_NUM_THREADS=$(NCPUS) beforehand to use multiple CPUs. For this need to separately enable multicpu-support when compiling libsvm.
+
+
+VII) Webcam application
+-----------------------
+The webcam application should be a short demonstration, of how to access the core program. It does not contain any cuda code, but depends on the cuda libaries, when there is dynamic linking. We use OpenCV to access the webcam and to perform some easy image manipulations. 
+
+How to compile:
+The makefile does not support the build of the webcam application. You can perform this by (replace <CUDA-PATHS>...)
+>>> g++ -o src/webcam_application/webcam.o -c -m32 -DWEBCAM_GUARD -I<CUDA-PATHS>... -Isrc/webcam_application/src/cuda/layers -I/usr/local/include/opencv -Isrc/cuda -Isrc/cuda/util -Isrc/cuda/layers -Isrc/libsvm-2.9 src/webcam_application/webcam.cc
+Alternativly you can set the COMPILE_WEBCAM = True in the site-scons/custom.py
+
+How to use: 
+Hit number keys to learn the current frame to the belonging category (hit <1> and the current frame is appended to category 1). When you are satisfied hit the <s> key to run the SVM and eventually hit <p> to predict the category for the current frame
